@@ -94,18 +94,20 @@ class ShowAlbumDialog:
         tk.Button(self.top, text="OK", command=self.on_ok, width=10).pack(pady=5)
         tk.Button(self.top, text="Abbrechen", command=self.on_cancel, width=10).pack(pady=5)
 
+        self.selected_album = None
+
     def on_ok(self):
-        selection = self.album_listbox.curselection()
-        if selection:
-            self.selected_album = self.album_listbox.get(selection[0])
-            self.top.destroy()
-        else:
-            messagebox.showerror("Fehler", "Sie müssen ein Album auswählen.")
+        if not self.album_listbox.curselection():
+            messagebox.showerror("Fehler", "Bitte wählen Sie ein Album aus.")
+            return
+
+        index = self.album_listbox.curselection()[0]
+        self.selected_album = self.album_listbox.get(index)
+        self.top.destroy()
 
     def on_cancel(self):
         self.selected_album = None
         self.top.destroy()
-
 class MusiksammlungGUI:
     def __init__(self, root):
         self.root = root
@@ -157,8 +159,10 @@ class MusiksammlungGUI:
 
     def add_album(self):
         dialog = AddAlbumDialog(self.root)
+        # wartet bis das Fenster schließt, um wieder aktiv zu sein
         self.root.wait_window(dialog.top)
 
+        # prüft, ob im Album Objekt vorhanden
         if hasattr(dialog, 'album_titel') and hasattr(dialog, 'interpret'):
             album = Album(dialog.album_titel, dialog.interpret)
             self.musiksammlung.album_hinzufuegen(album)
@@ -167,24 +171,38 @@ class MusiksammlungGUI:
             messagebox.showinfo("Info", "Album hinzufügen abgebrochen.")
 
     def remove_album(self):
+        # Überprüfen, ob es Alben in der Sammlung gibt
         if not self.musiksammlung.alben:
             messagebox.showinfo("Info", "Es gibt keine Alben zu entfernen.")
-            return
+            return  # Beende die Methode, wenn keine Alben vorhanden sind
 
+        # Lösche alle Einträge in der Listbox
         self.album_listbox.delete(0, tk.END)
+
+        # Fülle die Listbox mit den aktuellen Alben aus der Sammlung
         for album in self.musiksammlung.alben:
             self.album_listbox.insert(tk.END, f"{album.titel} - {album.interpret}")
 
         def on_select(event):
-            w = event.widget
+            # Diese Funktion wird aufgerufen, wenn ein Benutzer ein Element in der Listbox auswählt
+            w = event.widget  # Das Widget, das das Ereignis ausgelöst hat (die Listbox)
+
+            # Überprüfen, ob ein Element in der Listbox ausgewählt wurde
             if w.curselection():
-                index = int(w.curselection()[0])
-                selected_album = w.get(index)
-                album_title = selected_album.split(" - ")[0]
+                index = int(w.curselection()[0])  # Index des ausgewählten Elements wird gespeichert
+                selected_album = w.get(index)  # Text des ausgewählten Elements in der Listbox
+                album_title = selected_album.split(" - ")[0]  # Trenne den Albumtitel vom Interpreten
+
+                # Entferne das Album aus der Sammlung
                 self.musiksammlung.album_entfernen(album_title)
+
+                # Aktualisiere das Info-Label, um den Benutzer zu informieren
                 self.info_label.config(text=f"Album '{album_title}' wurde entfernt.")
+
+                # Entferne das Element aus der Listbox
                 self.album_listbox.delete(index)
 
+        # Verbinde das Listbox-Auswahlereignis mit der on_select-Funktion
         self.album_listbox.bind('<<ListboxSelect>>', on_select)
 
     def add_track(self):
@@ -233,22 +251,34 @@ class MusiksammlungGUI:
                         except ValueError as e:
                             messagebox.showerror("Fehler", f"Fehler beim Entfernen des Tracks: {e}")
                             return
-
+        # Funktion wird immer aufgerufen, wenn etwas neues ausgewählt wird
         self.album_listbox.bind('<<ListboxSelect>>', on_select)
 
     def show_albums(self):
+        # Löscht alle Einträge in der Listbox, um sie neu zu befüllen
         self.album_listbox.delete(0, tk.END)
 
+        # Überprüft, ob keine Alben in der Musiksammlung vorhanden sind
         if not self.musiksammlung.alben:
+            # Zeigt eine Informationsmeldung an, falls keine Alben vorhanden sind
             messagebox.showinfo("Info", "Es gibt keine Alben anzuzeigen.")
             return
 
+        # Iteriert über jedes Album in der Musiksammlung
         for album in self.musiksammlung.alben:
-            self.album_listbox.insert(tk.END, f"Album: {album.titel} von {album.interpret}")
+            # Berechnet die Gesamtdauer des Albums in einem lesbaren Format (z.B. "01:30")
+            album_duration = album.gesamt_spieldauer()
+
+            # Fügt Albumdetails in die Listbox ein, einschließlich der Gesamtdauer
+            self.album_listbox.insert(tk.END, f"Album: {album.titel} von {album.interpret} - Dauer: {album_duration}")
+
+            # Iteriert über jeden Track im aktuellen Album
             for track in album.tracks:
                 try:
+                    # Fügt die Details jedes Tracks in die Listbox ein
                     self.album_listbox.insert(tk.END, f"    {track.track_daten()}")
                 except AttributeError as e:
+                    # Zeigt eine Fehlermeldung an, falls ein Track nicht richtig angezeigt werden kann
                     messagebox.showerror("Fehler", f"Fehler beim Anzeigen des Tracks: {e}")
                     return
 
@@ -257,23 +287,35 @@ class MusiksammlungGUI:
             messagebox.showinfo("Info", "Es gibt keine Alben anzuzeigen.")
             return
 
+        # Erstellt einen Dialog zur Auswahl eines Albums
         dialog = ShowAlbumDialog(self.root, self.musiksammlung.alben)
+        # Wartet, bis das Dialogfenster geschlossen wird
         self.root.wait_window(dialog.top)
 
+        # Überprüft, ob im Dialog ein Album ausgewählt wurde
         if dialog.selected_album:
+            # Teilt den ausgewählten Album-String, um den Albumnamen zu erhalten
             album_title, _ = dialog.selected_album.split(" - ", 1)
+            # Iteriert über jedes Album in der Musiksammlung
             for album in self.musiksammlung.alben:
+                # Überprüft, ob der Titel des aktuellen Albums mit dem ausgewählten Titel übereinstimmt
                 if album.titel == album_title:
+                    # Löscht alle Einträge in der Listbox
                     self.album_listbox.delete(0, tk.END)
+                    # Fügt Albumdetails in die Listbox ein
                     self.album_listbox.insert(tk.END, f"Album: {album.titel} von {album.interpret}")
+                    # Iteriert über jeden Track im aktuellen Album
                     for track in album.tracks:
+                        # Fügt Trackdetails in die Listbox ein
                         self.album_listbox.insert(tk.END, f"    {track.track_daten()}")
+                    # Aktualisiert das Info-Label
                     self.info_label.config(text=f"Album '{album_title}' wird angezeigt.")
                     return
 
     def save_and_exit(self):
         self.musiksammlung.speichern_in_datei("musiksammlung.json")
         messagebox.showinfo("Info", "Daten wurden gespeichert. Programm wird beendet.")
+        # Beendet das Hauptfenster der Anwendung
         self.root.quit()
 
 if __name__ == "__main__":
