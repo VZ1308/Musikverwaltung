@@ -7,6 +7,8 @@ class AddAlbumDialog:
         self.top = Toplevel(parent)
         self.top.title("Album hinzufügen")
         self.top.geometry("400x200")
+        self.top.transient(parent)  # Make the window modal
+        self.top.grab_set()  # Ensure only this window can receive events
 
         tk.Label(self.top, text="Album Titel:").pack(pady=5)
         self.album_entry = tk.Entry(self.top)
@@ -36,6 +38,8 @@ class AddTrackDialog:
         self.top = Toplevel(parent)
         self.top.title("Track hinzufügen")
         self.top.geometry("600x400")
+        self.top.transient(parent)  # Make the window modal
+        self.top.grab_set()  # Ensure only this window can receive events
 
         tk.Label(self.top, text="Album Titel:").pack(pady=5)
         self.album_entry = tk.Entry(self.top)
@@ -82,6 +86,8 @@ class ShowAlbumDialog:
         self.top = Toplevel(parent)
         self.top.title("Album anzeigen")
         self.top.geometry("400x300")
+        self.top.transient(parent)  # Make the window modal
+        self.top.grab_set()  # Ensure only this window can receive events
 
         tk.Label(self.top, text="Wählen Sie ein Album:").pack(pady=5)
 
@@ -108,6 +114,7 @@ class ShowAlbumDialog:
     def on_cancel(self):
         self.selected_album = None
         self.top.destroy()
+
 class MusiksammlungGUI:
     def __init__(self, root):
         self.root = root
@@ -135,7 +142,7 @@ class MusiksammlungGUI:
             ("Track hinzufügen", self.add_track),
             ("Track entfernen", self.remove_track),
             ("Alle Alben anzeigen", self.show_albums),
-            ("Album anzeigen", self.show_album),  # Neue Funktion hinzufügen
+            ("Album anzeigen", self.show_album),
             ("Speichern und Beenden", self.save_and_exit),
         ]
 
@@ -159,10 +166,8 @@ class MusiksammlungGUI:
 
     def add_album(self):
         dialog = AddAlbumDialog(self.root)
-        # wartet bis das Fenster schließt, um wieder aktiv zu sein
         self.root.wait_window(dialog.top)
 
-        # prüft, ob im Album Objekt vorhanden
         if hasattr(dialog, 'album_titel') and hasattr(dialog, 'interpret'):
             album = Album(dialog.album_titel, dialog.interpret)
             self.musiksammlung.album_hinzufuegen(album)
@@ -171,38 +176,27 @@ class MusiksammlungGUI:
             messagebox.showinfo("Info", "Album hinzufügen abgebrochen.")
 
     def remove_album(self):
-        # Überprüfen, ob es Alben in der Sammlung gibt
         if not self.musiksammlung.alben:
             messagebox.showinfo("Info", "Es gibt keine Alben zu entfernen.")
-            return  # Beende die Methode, wenn keine Alben vorhanden sind
+            return
 
-        # Lösche alle Einträge in der Listbox
         self.album_listbox.delete(0, tk.END)
 
-        # Fülle die Listbox mit den aktuellen Alben aus der Sammlung
         for album in self.musiksammlung.alben:
             self.album_listbox.insert(tk.END, f"{album.titel} - {album.interpret}")
 
         def on_select(event):
-            # Diese Funktion wird aufgerufen, wenn ein Benutzer ein Element in der Listbox auswählt
-            w = event.widget  # Das Widget, das das Ereignis ausgelöst hat (die Listbox)
+            if not self.album_listbox.curselection():
+                return
 
-            # Überprüfen, ob ein Element in der Listbox ausgewählt wurde
-            if w.curselection():
-                index = int(w.curselection()[0])  # Index des ausgewählten Elements wird gespeichert
-                selected_album = w.get(index)  # Text des ausgewählten Elements in der Listbox
-                album_title = selected_album.split(" - ")[0]  # Trenne den Albumtitel vom Interpreten
+            index = self.album_listbox.curselection()[0]
+            selected_album = self.album_listbox.get(index)
+            album_title = selected_album.split(" - ")[0]
 
-                # Entferne das Album aus der Sammlung
-                self.musiksammlung.album_entfernen(album_title)
+            self.musiksammlung.album_entfernen(album_title)
+            self.info_label.config(text=f"Album '{album_title}' wurde entfernt.")
+            self.album_listbox.delete(index)
 
-                # Aktualisiere das Info-Label, um den Benutzer zu informieren
-                self.info_label.config(text=f"Album '{album_title}' wurde entfernt.")
-
-                # Entferne das Element aus der Listbox
-                self.album_listbox.delete(index)
-
-        # Verbinde das Listbox-Auswahlereignis mit der on_select-Funktion
         self.album_listbox.bind('<<ListboxSelect>>', on_select)
 
     def add_track(self):
@@ -236,49 +230,40 @@ class MusiksammlungGUI:
                 self.album_listbox.insert(tk.END, f"{album.titel} - {track.titel}")
 
         def on_select(event):
-            w = event.widget
-            if w.curselection():
-                index = int(w.curselection()[0])
-                selected_track = w.get(index)
-                album_title, track_title = selected_track.split(" - ")
+            if not self.album_listbox.curselection():
+                return
 
-                for album in self.musiksammlung.alben:
-                    if album.titel == album_title:
-                        try:
-                            album.track_entfernen(track_title)
-                            self.info_label.config(text=f"Track '{track_title}' wurde aus Album '{album_title}' entfernt.")
-                            self.album_listbox.delete(index)
-                        except ValueError as e:
-                            messagebox.showerror("Fehler", f"Fehler beim Entfernen des Tracks: {e}")
-                            return
-        # Funktion wird immer aufgerufen, wenn etwas neues ausgewählt wird
+            index = self.album_listbox.curselection()[0]
+            selected_track = self.album_listbox.get(index)
+            album_title, track_title = selected_track.split(" - ")
+
+            for album in self.musiksammlung.alben:
+                if album.titel == album_title:
+                    try:
+                        album.track_entfernen(track_title)
+                        self.info_label.config(text=f"Track '{track_title}' wurde aus Album '{album_title}' entfernt.")
+                        self.album_listbox.delete(index)
+                    except ValueError as e:
+                        messagebox.showerror("Fehler", f"Fehler beim Entfernen des Tracks: {e}")
+                        return
+
         self.album_listbox.bind('<<ListboxSelect>>', on_select)
 
     def show_albums(self):
-        # Löscht alle Einträge in der Listbox, um sie neu zu befüllen
         self.album_listbox.delete(0, tk.END)
+        self.info_label.config(text="")
 
-        # Überprüft, ob keine Alben in der Musiksammlung vorhanden sind
         if not self.musiksammlung.alben:
-            # Zeigt eine Informationsmeldung an, falls keine Alben vorhanden sind
             messagebox.showinfo("Info", "Es gibt keine Alben anzuzeigen.")
             return
 
-        # Iteriert über jedes Album in der Musiksammlung
         for album in self.musiksammlung.alben:
-            # Berechnet die Gesamtdauer des Albums in einem lesbaren Format (z.B. "01:30")
             album_duration = album.gesamt_spieldauer()
-
-            # Fügt Albumdetails in die Listbox ein, einschließlich der Gesamtdauer
-            self.album_listbox.insert(tk.END, f"Album: {album.titel} von {album.interpret} - Dauer: {album_duration}")
-
-            # Iteriert über jeden Track im aktuellen Album
-            for track in album.tracks:
+            self.album_listbox.insert(tk.END, f"Album: {album.titel}\n\n Von: {album.interpret}\n\n Länge: {album_duration}\n\n")
+            for index, track in enumerate(album.tracks, start=1):
                 try:
-                    # Fügt die Details jedes Tracks in die Listbox ein
-                    self.album_listbox.insert(tk.END, f"    {track.track_daten()}")
+                    self.album_listbox.insert(tk.END, f"Track {index}: {track.track_daten()}\n")
                 except AttributeError as e:
-                    # Zeigt eine Fehlermeldung an, falls ein Track nicht richtig angezeigt werden kann
                     messagebox.showerror("Fehler", f"Fehler beim Anzeigen des Tracks: {e}")
                     return
 
@@ -287,35 +272,23 @@ class MusiksammlungGUI:
             messagebox.showinfo("Info", "Es gibt keine Alben anzuzeigen.")
             return
 
-        # Erstellt einen Dialog zur Auswahl eines Albums
         dialog = ShowAlbumDialog(self.root, self.musiksammlung.alben)
-        # Wartet, bis das Dialogfenster geschlossen wird
         self.root.wait_window(dialog.top)
 
-        # Überprüft, ob im Dialog ein Album ausgewählt wurde
         if dialog.selected_album:
-            # Teilt den ausgewählten Album-String, um den Albumnamen zu erhalten
             album_title, _ = dialog.selected_album.split(" - ", 1)
-            # Iteriert über jedes Album in der Musiksammlung
             for album in self.musiksammlung.alben:
-                # Überprüft, ob der Titel des aktuellen Albums mit dem ausgewählten Titel übereinstimmt
                 if album.titel == album_title:
-                    # Löscht alle Einträge in der Listbox
                     self.album_listbox.delete(0, tk.END)
-                    # Fügt Albumdetails in die Listbox ein
                     self.album_listbox.insert(tk.END, f"Album: {album.titel} von {album.interpret}")
-                    # Iteriert über jeden Track im aktuellen Album
                     for track in album.tracks:
-                        # Fügt Trackdetails in die Listbox ein
                         self.album_listbox.insert(tk.END, f"    {track.track_daten()}")
-                    # Aktualisiert das Info-Label
                     self.info_label.config(text=f"Album '{album_title}' wird angezeigt.")
                     return
 
     def save_and_exit(self):
         self.musiksammlung.speichern_in_datei("musiksammlung.json")
         messagebox.showinfo("Info", "Daten wurden gespeichert. Programm wird beendet.")
-        # Beendet das Hauptfenster der Anwendung
         self.root.quit()
 
 if __name__ == "__main__":
