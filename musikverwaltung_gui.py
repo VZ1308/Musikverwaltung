@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import messagebox, Toplevel
 from classes import Musiksammlung, Track, Album
 
+
 class AddAlbumDialog:
     def __init__(self, parent):
         self.top = Toplevel(parent)
@@ -200,11 +201,18 @@ class MusiksammlungGUI:
         dialog = AddTrackDialog(self.root)
         self.root.wait_window(dialog.top)
 
-        if hasattr(dialog, 'album_titel') and hasattr(dialog, 'track_titel') and hasattr(dialog, 'dateiname') and hasattr(dialog, 'laenge'):
+        if hasattr(dialog, 'album_titel') and hasattr(dialog, 'track_titel') and hasattr(dialog,
+                                                                                         'dateiname') and hasattr(
+                dialog, 'laenge'):
             album_titel = dialog.album_titel
             track_titel = dialog.track_titel
             dateiname = dialog.dateiname
             laenge = dialog.laenge
+
+            import re
+            if not re.search(r'\.mp3$', dateiname):
+                messagebox.showerror("Fehler", "Dateiname muss mit '.mp3' enden.")
+                return
 
             for album in self.musiksammlung.alben:
                 if album.titel == album_titel:
