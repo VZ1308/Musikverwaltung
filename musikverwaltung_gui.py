@@ -7,8 +7,8 @@ class AddAlbumDialog:
         self.top = Toplevel(parent)
         self.top.title("Album hinzufügen")
         self.top.geometry("400x200")
-        self.top.transient(parent)  # Make the window modal
-        self.top.grab_set()  # Ensure only this window can receive events
+        self.top.transient(parent)  # Macht das Fenster modal
+        self.top.grab_set()  # Stellt sicher, dass nur dieses Fenster Ereignisse empfangen kann
 
         tk.Label(self.top, text="Album Titel:").pack(pady=5)
         self.album_entry = tk.Entry(self.top)
@@ -22,7 +22,7 @@ class AddAlbumDialog:
         tk.Button(self.top, text="Abbrechen", command=self.on_cancel, width=10).pack(pady=5)
 
     def on_ok(self):
-        self.album_titel = self.album_entry.get().strip()
+        self.album_titel = self.album_entry.get().capitalize().strip()
         self.interpret = self.interpret_entry.get().strip()
 
         if not self.album_titel or not self.interpret:
@@ -38,8 +38,8 @@ class AddTrackDialog:
         self.top = Toplevel(parent)
         self.top.title("Track hinzufügen")
         self.top.geometry("600x400")
-        self.top.transient(parent)  # Make the window modal
-        self.top.grab_set()  # Ensure only this window can receive events
+        self.top.transient(parent)  # Macht das Fenster modal
+        self.top.grab_set()  # Stellt sicher, dass nur dieses Fenster Ereignisse empfangen kann
 
         tk.Label(self.top, text="Album Titel:").pack(pady=5)
         self.album_entry = tk.Entry(self.top)
@@ -61,7 +61,7 @@ class AddTrackDialog:
         tk.Button(self.top, text="Abbrechen", command=self.on_cancel, width=10).pack(pady=5)
 
     def on_ok(self):
-        self.album_titel = self.album_entry.get().strip()
+        self.album_titel = self.album_entry.get().capitalize().strip()
         self.track_titel = self.track_entry.get().strip()
         self.dateiname = self.dateiname_entry.get().strip()
         self.laenge = self.laenge_entry.get().strip()
@@ -86,8 +86,8 @@ class ShowAlbumDialog:
         self.top = Toplevel(parent)
         self.top.title("Album anzeigen")
         self.top.geometry("400x300")
-        self.top.transient(parent)  # Make the window modal
-        self.top.grab_set()  # Ensure only this window can receive events
+        self.top.transient(parent)  # Macht das Fenster modal
+        self.top.grab_set()  # Stellt sicher, dass nur dieses Fenster Ereignisse empfangen kann
 
         tk.Label(self.top, text="Wählen Sie ein Album:").pack(pady=5)
 
@@ -133,8 +133,8 @@ class MusiksammlungGUI:
         self.info_frame = tk.Frame(self.root, padx=10, pady=10, bg="lightgrey")
         self.info_frame.pack(side=tk.BOTTOM, fill=tk.BOTH)
 
-        self.listbox_frame = tk.Frame(self.root, padx=10, pady=10)
-        self.listbox_frame.pack(side=tk.TOP, fill=tk.BOTH)
+        self.text_frame = tk.Frame(self.root, padx=10, pady=10)
+        self.text_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         buttons = [
             ("Album hinzufügen", self.add_album),
@@ -147,21 +147,19 @@ class MusiksammlungGUI:
         ]
 
         for text, command in buttons:
-            button = tk.Button(button_frame, text=text, command=command, width=20, height=2, bg="#4CAF50", fg="white",
-                               font=("Arial", 12))
+            button = tk.Button(button_frame, text=text, command=command, width=20, height=2, bg="#4CAF50", fg="white", font=("Arial", 12))
             button.pack(pady=5)
 
-        self.album_listbox = tk.Listbox(self.listbox_frame, font=("Arial", 12), width=70, height=15)
-        self.album_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.album_text = tk.Text(self.text_frame, font=("Arial", 12), wrap=tk.WORD)
+        self.album_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        self.scrollbar = tk.Scrollbar(self.listbox_frame)
+        self.scrollbar = tk.Scrollbar(self.text_frame)
         self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        self.album_listbox.config(yscrollcommand=self.scrollbar.set)
-        self.scrollbar.config(command=self.album_listbox.yview)
+        self.album_text.config(yscrollcommand=self.scrollbar.set)
+        self.scrollbar.config(command=self.album_text.yview)
 
-        self.info_label = tk.Label(self.info_frame, text="Willkommen zur Musiksammlungs-Verwaltung", bg="lightgrey",
-                                   font=("Arial", 14))
+        self.info_label = tk.Label(self.info_frame, text="Willkommen zur Musiksammlungs-Verwaltung", bg="lightgrey", font=("Arial", 14))
         self.info_label.pack(pady=20)
 
     def add_album(self):
@@ -180,24 +178,23 @@ class MusiksammlungGUI:
             messagebox.showinfo("Info", "Es gibt keine Alben zu entfernen.")
             return
 
-        self.album_listbox.delete(0, tk.END)
+        self.album_text.delete(1.0, tk.END)
 
         for album in self.musiksammlung.alben:
-            self.album_listbox.insert(tk.END, f"{album.titel} - {album.interpret}")
+            self.album_text.insert(tk.END, f"{album.titel} - {album.interpret}\n")
 
         def on_select(event):
-            if not self.album_listbox.curselection():
+            if not self.album_text.tag_ranges(tk.SEL):
                 return
 
-            index = self.album_listbox.curselection()[0]
-            selected_album = self.album_listbox.get(index)
-            album_title = selected_album.split(" - ")[0]
+            selected_text = self.album_text.get(tk.SEL_FIRST, tk.SEL_LAST).strip()
+            album_title = selected_text.split(" - ")[0]
 
             self.musiksammlung.album_entfernen(album_title)
             self.info_label.config(text=f"Album '{album_title}' wurde entfernt.")
-            self.album_listbox.delete(index)
+            self.album_text.delete(tk.SEL_FIRST, tk.SEL_LAST)
 
-        self.album_listbox.bind('<<ListboxSelect>>', on_select)
+        self.album_text.bind('<ButtonRelease-1>', on_select)
 
     def add_track(self):
         dialog = AddTrackDialog(self.root)
@@ -224,33 +221,33 @@ class MusiksammlungGUI:
             messagebox.showinfo("Info", "Es gibt keine Tracks zu entfernen.")
             return
 
-        self.album_listbox.delete(0, tk.END)
+        self.album_text.delete(1.0, tk.END)
+
         for album in self.musiksammlung.alben:
             for track in album.tracks:
-                self.album_listbox.insert(tk.END, f"{album.titel} - {track.titel}")
+                self.album_text.insert(tk.END, f"{album.titel} - {track.titel}\n")
 
         def on_select(event):
-            if not self.album_listbox.curselection():
+            if not self.album_text.tag_ranges(tk.SEL):
                 return
 
-            index = self.album_listbox.curselection()[0]
-            selected_track = self.album_listbox.get(index)
-            album_title, track_title = selected_track.split(" - ")
+            selected_text = self.album_text.get(tk.SEL_FIRST, tk.SEL_LAST).strip()
+            album_title, track_title = selected_text.split(" - ")
 
             for album in self.musiksammlung.alben:
                 if album.titel == album_title:
                     try:
                         album.track_entfernen(track_title)
                         self.info_label.config(text=f"Track '{track_title}' wurde aus Album '{album_title}' entfernt.")
-                        self.album_listbox.delete(index)
+                        self.album_text.delete(tk.SEL_FIRST, tk.SEL_LAST)
                     except ValueError as e:
                         messagebox.showerror("Fehler", f"Fehler beim Entfernen des Tracks: {e}")
                         return
 
-        self.album_listbox.bind('<<ListboxSelect>>', on_select)
+        self.album_text.bind('<ButtonRelease-1>', on_select)
 
     def show_albums(self):
-        self.album_listbox.delete(0, tk.END)
+        self.album_text.delete(1.0, tk.END)
         self.info_label.config(text="")
 
         if not self.musiksammlung.alben:
@@ -259,13 +256,15 @@ class MusiksammlungGUI:
 
         for album in self.musiksammlung.alben:
             album_duration = album.gesamt_spieldauer()
-            self.album_listbox.insert(tk.END, f"Album: {album.titel}\n\n Von: {album.interpret}\n\n Länge: {album_duration}\n\n")
+            self.album_text.insert(tk.END, f"--------------------------------------------------\n"
+                                           f"Album: {album.titel}\nVon: {album.interpret}\nLänge: {album_duration}\n\n")
             for index, track in enumerate(album.tracks, start=1):
                 try:
-                    self.album_listbox.insert(tk.END, f"Track {index}: {track.track_daten()}\n")
+                    self.album_text.insert(tk.END, f"Track {index}: {track.track_daten()}\n")
                 except AttributeError as e:
                     messagebox.showerror("Fehler", f"Fehler beim Anzeigen des Tracks: {e}")
                     return
+            self.album_text.insert(tk.END, "\n")
 
     def show_album(self):
         if not self.musiksammlung.alben:
@@ -274,15 +273,15 @@ class MusiksammlungGUI:
 
         dialog = ShowAlbumDialog(self.root, self.musiksammlung.alben)
         self.root.wait_window(dialog.top)
-
         if dialog.selected_album:
             album_title, _ = dialog.selected_album.split(" - ", 1)
             for album in self.musiksammlung.alben:
                 if album.titel == album_title:
-                    self.album_listbox.delete(0, tk.END)
-                    self.album_listbox.insert(tk.END, f"Album: {album.titel} von {album.interpret}")
-                    for track in album.tracks:
-                        self.album_listbox.insert(tk.END, f"    {track.track_daten()}")
+                    self.album_text.delete(1.0, tk.END)
+                    self.album_text.insert(tk.END, f"Album: {album.titel} von {album.interpret}\n")
+                    for idx, track in enumerate(album.tracks, start=1):
+                        self.album_text.insert(tk.END, f"   Track {idx}: {track.track_daten()}\n")
+                    self.album_text.insert(tk.END, f"Dauer: {album.gesamt_spieldauer()} \n")
                     self.info_label.config(text=f"Album '{album_title}' wird angezeigt.")
                     return
 
